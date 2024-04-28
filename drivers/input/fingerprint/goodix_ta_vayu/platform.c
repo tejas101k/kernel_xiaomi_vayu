@@ -4,7 +4,7 @@
  * Coypritht (c) 2017 Goodix
  */
 #define DEBUG
-#define pr_fmt(fmt)     "gf_platform: " fmt
+#define pr_fmt(fmt) "gf_platform: " fmt
 
 #include <linux/delay.h>
 #include <linux/workqueue.h>
@@ -27,8 +27,8 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 {
 #ifdef GF_PW_CTL
 	/*get pwr resource*/
-	gf_dev->pwr_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node, "fp-gpio-pwr",
-						0);
+	gf_dev->pwr_gpio =
+		of_get_named_gpio(gf_dev->spi->dev.of_node, "fp-gpio-pwr", 0);
 
 	if (!gpio_is_valid(gf_dev->pwr_gpio)) {
 		pr_info("PWR GPIO is invalid.\n");
@@ -38,7 +38,7 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 #endif
 	/*get reset resource*/
 	gf_dev->reset_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,
-						"goodix,gpio-reset", 0);
+					       "goodix,gpio-reset", 0);
 
 	if (!gpio_is_valid(gf_dev->reset_gpio)) {
 		pr_info("RESET GPIO is invalid.\n");
@@ -47,7 +47,7 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 
 	/*get irq resourece*/
 	gf_dev->irq_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,
-						"goodix,gpio-irq", 0);
+					     "goodix,gpio-irq", 0);
 	pr_info("gf::irq_gpio:%d\n", gf_dev->irq_gpio);
 
 	if (!gpio_is_valid(gf_dev->irq_gpio)) {
@@ -139,4 +139,3 @@ int gf_irq_num(struct gf_dev *gf_dev)
 		return gpio_to_irq(gf_dev->irq_gpio);
 	}
 }
-
