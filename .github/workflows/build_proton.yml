@@ -1,0 +1,87 @@
+name: Build Vayu Kernel (Performance + LTO)
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Kernel (Proton Clang + LTO)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Kernel Source
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install Build Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 python2
+
+    - name: Download Proton Clang
+      run: |
+        git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
+
+    - name: Download AnyKernel3
+      run: |
+        git clone https://github.com/osm0sis/AnyKernel3
+        rm -rf AnyKernel3/.git
+
+    - name: Build The Kernel
+      run: |
+        export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+        export ARCH=arm64
+        export SUBARCH=arm64
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+        export CC=clang
+        export AR=llvm-ar
+        export NM=llvm-nm
+        export OBJCOPY=llvm-objcopy
+        export OBJDUMP=llvm-objdump
+        export STRIP=llvm-strip
+
+        # 1. Clean old builds
+        make O=out clean
+        make O=out mrproper
+
+        # 2. Load the config (vayu_user_defconfig)
+        make O=out vayu_user_defconfig
+
+        # 3. PERFORMANCE HACK: Force-Enable LTO (Link Time Optimization)
+        # We use 'sed' to edit the config file automatically before building
+        echo "--> Force-enabling LTO for maximum performance..."
+        sed -i 's/# CONFIG_LTO_CLANG is not set/CONFIG_LTO_CLANG=y/g' out/.config
+        sed -i 's/# CONFIG_THINLTO is not set/CONFIG_THINLTO=y/g' out/.config
+        echo "CONFIG_LTO=y" >> out/.config
+        echo "CONFIG_LTO_CLANG=y" >> out/.config
+        echo "CONFIG_THINLTO=y" >> out/.config
+
+        # 4. Build command (This will take longer than before, be patient!)
+        make O=out -j$(nproc --all)
+
+    - name: Package into Zip
+      run: |
+        if [ -f out/arch/arm64/boot/Image ]; then
+           cp out/arch/arm64/boot/Image AnyKernel3/
+        elif [ -f out/arch/arm64/boot/Image.gz ]; then
+           cp out/arch/arm64/boot/Image.gz AnyKernel3/
+        elif [ -f out/arch/arm64/boot/Image.gz-dtb ]; then
+           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/Image.gz-dtb
+        else
+           echo "Error: Kernel Image not found! Build likely failed."
+           exit 1
+        fi
+        
+        if [ -f out/arch/arm64/boot/dtb ]; then
+           cp out/arch/arm64/boot/dtb AnyKernel3/dtb
+        fi
+
+        cd AnyKernel3
+        zip -r9 ../Vayu-Kernel-Performance.zip *
+
+    - name: Upload Flashable Zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: Flashable-Kernel-Zip
+        path: Vayu-Kernel-Performance.zip
